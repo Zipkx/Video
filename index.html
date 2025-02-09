@@ -37,16 +37,24 @@
         您的瀏覽器不支援影片播放。
     </video>
 
-    <!-- 警告圖片（當偵測到截圖行為時顯示） -->
-    <img id="screenshot-alert" src="screenshot-alert.png" alt="警告：禁止截圖！">
-
-    <!-- 用於渲染影片的 Canvas -->
-    <canvas id="videoCanvas"></canvas>
+    <!-- 警告圖片（當偵測到截圖或錄影時顯示） -->
+    <img id="screenshot-alert" src="screenshot-alert.png" alt="警告：禁止錄影！">
 
     <script>
         const video = document.getElementById("video");
-        const canvas = document.getElementById("videoCanvas");
-        const ctx = canvas.getContext("2d");
+
+        // 當影片播放時自動進入全螢幕
+        video.addEventListener("play", function () {
+            if (video.requestFullscreen) {
+                video.requestFullscreen();
+            } else if (video.mozRequestFullScreen) { // Firefox
+                video.mozRequestFullScreen();
+            } else if (video.webkitRequestFullscreen) { // Chrome, Safari
+                video.webkitRequestFullscreen();
+            } else if (video.msRequestFullscreen) { // IE/Edge
+                video.msRequestFullscreen();
+            }
+        });
 
         // 監聽 visibilitychange（視窗最小化、切換標籤）
         document.addEventListener("visibilitychange", function () {
@@ -57,9 +65,18 @@
             }
         });
 
-        // 監聽 fullscreenchange（偵測使用者是否退出全螢幕）
+        // 監聽 fullscreenchange（偵測使用者是否退出全螢幕，並重設播放器）
         document.addEventListener("fullscreenchange", function () {
             if (!document.fullscreenElement) {
+                resetVideoPlayer();
+            }
+        });
+
+        // 監聽快捷鍵錄影行為（Windows Game Bar: Win + G / Mac: Shift + Command + 5）
+        document.addEventListener("keydown", function (event) {
+            if ((event.metaKey && event.key === "5") || // Mac 錄影快捷鍵
+                (event.ctrlKey && event.shiftKey && event.key === "R") || // 自訂錄影偵測快捷鍵
+                (event.key === "PrintScreen")) { // Windows 錄影快捷鍵
                 switchToWarning();
             }
         });
@@ -77,44 +94,23 @@
         }
         setInterval(detectScreenRecording, 3000);
 
-        // 使用 requestAnimationFrame 檢測畫面是否靜止（部分手機錄影會導致畫面靜止）
-        let lastFrameTime = performance.now();
-        function detectScreenshot() {
-            let currentTime = performance.now();
-            let delta = currentTime - lastFrameTime;
-            if (delta > 1000) { // 如果畫面凍結超過 1 秒，視為可能截圖
-                switchToWarning();
-            }
-            lastFrameTime = currentTime;
-            requestAnimationFrame(detectScreenshot);
-        }
-        requestAnimationFrame(detectScreenshot);
-
-        // 使用 Canvas 渲染影片，干擾錄影工具
-        function renderToCanvas() {
-            if (video.videoWidth > 0 && video.videoHeight > 0) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            }
-            requestAnimationFrame(renderToCanvas);
-        }
-        video.addEventListener("play", function () {
-            requestAnimationFrame(renderToCanvas);
-        });
-
         // 替換影片為警告畫面
         function switchToWarning() {
             document.getElementById("video").style.display = "none";
-            document.getElementById("videoCanvas").style.display = "none";
             document.getElementById("screenshot-alert").style.display = "block";
         }
 
         // 恢復影片播放
         function restoreVideo() {
             document.getElementById("video").style.display = "block";
-            document.getElementById("videoCanvas").style.display = "block";
             document.getElementById("screenshot-alert").style.display = "none";
+        }
+
+        // **退出全螢幕時，重置播放器（停止並重置時間）**
+        function resetVideoPlayer() {
+            video.pause(); // 停止播放
+            video.currentTime = 0; // 重置時間
+            restoreVideo(); // 確保畫面恢復正常
         }
     </script>
 
