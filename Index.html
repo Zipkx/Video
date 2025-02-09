@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Every Day Fans</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        video, img {
+            width: 80%;
+            max-width: 600px;
+            display: block;
+            margin: 20px auto;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.3);
+        }
+        #screenshot-alert {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>防截圖影片播放器</h1>
+    
+    <!-- 影片播放區 -->
+    <video id="video" controls>
+        <source src="video.mp4" type="video/mp4">
+        您的瀏覽器不支援影片播放。
+    </video>
+
+    <!-- 警告圖片（當偵測到截圖行為時顯示） -->
+    <img id="screenshot-alert" src="screenshot-alert.png" alt="警告：禁止截圖！">
+
+    <script>
+        // 監聽 PrintScreen 截圖鍵
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "PrintScreen") {
+                event.preventDefault();
+                switchToWarning();
+            }
+        });
+
+        // 監聽開發者工具開啟（F12、Ctrl + Shift + I、Ctrl + Shift + C、Ctrl + Shift + J）
+        window.addEventListener("keydown", function (event) {
+            if (event.key === "F12" || 
+                (event.ctrlKey && event.shiftKey && (event.key === "I" || event.key === "J" || event.key === "C"))) {
+                event.preventDefault();
+                switchToWarning();
+            }
+        });
+
+        // 監聽 visibilitychange（視窗最小化、切換標籤）
+        document.addEventListener("visibilitychange", function () {
+            if (document.hidden) {
+                switchToWarning();
+            } else {
+                restoreVideo();
+            }
+        });
+
+        // 替換影片為警告畫面
+        function switchToWarning() {
+            document.getElementById("video").style.display = "none";
+            document.getElementById("screenshot-alert").style.display = "block";
+        }
+
+        // 恢復影片播放
+        function restoreVideo() {
+            document.getElementById("video").style.display = "block";
+            document.getElementById("screenshot-alert").style.display = "none";
+        }
+    </script>
+
+</body>
+</html>
