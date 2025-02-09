@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Every Day Fans</title>
+    <title>防截圖影片播放</title>
     <style>
         body {
             text-align: center;
@@ -21,6 +21,10 @@
         #screenshot-alert {
             display: none;
         }
+        video {
+            mix-blend-mode: difference;
+            background-color: black;
+        }
     </style>
 </head>
 <body>
@@ -37,23 +41,6 @@
     <img id="screenshot-alert" src="screenshot-alert.png" alt="警告：禁止截圖！">
 
     <script>
-        // 監聽 PrintScreen 截圖鍵
-        document.addEventListener("keydown", function (event) {
-            if (event.key === "PrintScreen") {
-                event.preventDefault();
-                switchToWarning();
-            }
-        });
-
-        // 監聽開發者工具開啟（F12、Ctrl + Shift + I、Ctrl + Shift + C、Ctrl + Shift + J）
-        window.addEventListener("keydown", function (event) {
-            if (event.key === "F12" || 
-                (event.ctrlKey && event.shiftKey && (event.key === "I" || event.key === "J" || event.key === "C"))) {
-                event.preventDefault();
-                switchToWarning();
-            }
-        });
-
         // 監聽 visibilitychange（視窗最小化、切換標籤）
         document.addEventListener("visibilitychange", function () {
             if (document.hidden) {
@@ -62,6 +49,20 @@
                 restoreVideo();
             }
         });
+
+        // WebRTC 偵測螢幕錄影
+        async function detectScreenRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                if (stream) {
+                    switchToWarning();
+                }
+            } catch (error) {
+                console.log("未偵測到螢幕錄影");
+            }
+        }
+
+        setInterval(detectScreenRecording, 3000);
 
         // 替換影片為警告畫面
         function switchToWarning() {
