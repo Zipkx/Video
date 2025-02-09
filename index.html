@@ -10,7 +10,7 @@
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
         }
-        video, img {
+        video, img, canvas {
             width: 80%;
             max-width: 600px;
             display: block;
@@ -40,7 +40,14 @@
     <!-- 警告圖片（當偵測到截圖行為時顯示） -->
     <img id="screenshot-alert" src="screenshot-alert.png" alt="警告：禁止截圖！">
 
+    <!-- 用於渲染影片的 Canvas -->
+    <canvas id="videoCanvas"></canvas>
+
     <script>
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("videoCanvas");
+        const ctx = canvas.getContext("2d");
+
         // 監聽 visibilitychange（視窗最小化、切換標籤）
         document.addEventListener("visibilitychange", function () {
             if (document.hidden) {
@@ -50,7 +57,14 @@
             }
         });
 
-        // WebRTC 偵測螢幕錄影
+        // 監聽 fullscreenchange（偵測使用者是否退出全螢幕）
+        document.addEventListener("fullscreenchange", function () {
+            if (!document.fullscreenElement) {
+                switchToWarning();
+            }
+        });
+
+        // WebRTC 偵測螢幕錄影（嘗試獲取螢幕錄影權限）
         async function detectScreenRecording() {
             try {
                 const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
@@ -61,18 +75,45 @@
                 console.log("未偵測到螢幕錄影");
             }
         }
-
         setInterval(detectScreenRecording, 3000);
+
+        // 使用 requestAnimationFrame 檢測畫面是否靜止（部分手機錄影會導致畫面靜止）
+        let lastFrameTime = performance.now();
+        function detectScreenshot() {
+            let currentTime = performance.now();
+            let delta = currentTime - lastFrameTime;
+            if (delta > 1000) { // 如果畫面凍結超過 1 秒，視為可能截圖
+                switchToWarning();
+            }
+            lastFrameTime = currentTime;
+            requestAnimationFrame(detectScreenshot);
+        }
+        requestAnimationFrame(detectScreenshot);
+
+        // 使用 Canvas 渲染影片，干擾錄影工具
+        function renderToCanvas() {
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            }
+            requestAnimationFrame(renderToCanvas);
+        }
+        video.addEventListener("play", function () {
+            requestAnimationFrame(renderToCanvas);
+        });
 
         // 替換影片為警告畫面
         function switchToWarning() {
             document.getElementById("video").style.display = "none";
+            document.getElementById("videoCanvas").style.display = "none";
             document.getElementById("screenshot-alert").style.display = "block";
         }
 
         // 恢復影片播放
         function restoreVideo() {
             document.getElementById("video").style.display = "block";
+            document.getElementById("videoCanvas").style.display = "block";
             document.getElementById("screenshot-alert").style.display = "none";
         }
     </script>
