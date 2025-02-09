@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>防截圖影片播放</title>
+    <title>防錄影影片播放器</title>
     <style>
         body {
             text-align: center;
@@ -29,7 +29,7 @@
 </head>
 <body>
 
-    <h1>防截圖影片播放器</h1>
+    <h1>防錄影影片播放器</h1>
     
     <!-- 影片播放區 -->
     <video id="video" controls>
@@ -37,51 +37,35 @@
         您的瀏覽器不支援影片播放。
     </video>
 
-    <!-- 警告圖片（當偵測到截圖或錄影時顯示） -->
+    <!-- 警告圖片（當偵測到錄影時顯示） -->
     <img id="screenshot-alert" src="screenshot-alert.png" alt="警告：禁止錄影！">
 
     <script>
         const video = document.getElementById("video");
 
-        // 當影片播放時自動進入全螢幕
-        video.addEventListener("play", function () {
-            if (video.requestFullscreen) {
-                video.requestFullscreen();
-            } else if (video.mozRequestFullScreen) { // Firefox
-                video.mozRequestFullScreen();
-            } else if (video.webkitRequestFullscreen) { // Chrome, Safari
-                video.webkitRequestFullscreen();
-            } else if (video.msRequestFullscreen) { // IE/Edge
-                video.msRequestFullscreen();
-            }
-        });
+        // **監測 `requestAnimationFrame` 畫面是否凍結**
+        let lastFrameTime = performance.now();
+        function detectRecording() {
+            let currentTime = performance.now();
+            let delta = currentTime - lastFrameTime;
 
-        // 監聽 visibilitychange（視窗最小化、切換標籤）
-        document.addEventListener("visibilitychange", function () {
-            if (document.hidden) {
+            if (delta > 1000) { // 如果畫面卡住超過 1 秒
                 switchToWarning();
-            } else {
-                restoreVideo();
             }
-        });
 
-        // 監聽 fullscreenchange（偵測使用者是否退出全螢幕，並重設播放器）
+            lastFrameTime = currentTime;
+            requestAnimationFrame(detectRecording);
+        }
+        requestAnimationFrame(detectRecording);
+
+        // **監測 fullscreenchange（錄影可能退出全螢幕）**
         document.addEventListener("fullscreenchange", function () {
             if (!document.fullscreenElement) {
-                resetVideoPlayer();
-            }
-        });
-
-        // 監聽快捷鍵錄影行為（Windows Game Bar: Win + G / Mac: Shift + Command + 5）
-        document.addEventListener("keydown", function (event) {
-            if ((event.metaKey && event.key === "5") || // Mac 錄影快捷鍵
-                (event.ctrlKey && event.shiftKey && event.key === "R") || // 自訂錄影偵測快捷鍵
-                (event.key === "PrintScreen")) { // Windows 錄影快捷鍵
                 switchToWarning();
             }
         });
 
-        // WebRTC 偵測螢幕錄影（嘗試獲取螢幕錄影權限）
+        // **監測 WebRTC 螢幕錄影**
         async function detectScreenRecording() {
             try {
                 const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
@@ -94,23 +78,25 @@
         }
         setInterval(detectScreenRecording, 3000);
 
-        // 替換影片為警告畫面
+        // **使用 Canvas 渲染影片，干擾錄影工具**
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        function renderToCanvas() {
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            }
+            requestAnimationFrame(renderToCanvas);
+        }
+        video.addEventListener("play", function () {
+            requestAnimationFrame(renderToCanvas);
+        });
+
+        // **替換影片為警告畫面**
         function switchToWarning() {
             document.getElementById("video").style.display = "none";
             document.getElementById("screenshot-alert").style.display = "block";
-        }
-
-        // 恢復影片播放
-        function restoreVideo() {
-            document.getElementById("video").style.display = "block";
-            document.getElementById("screenshot-alert").style.display = "none";
-        }
-
-        // **退出全螢幕時，重置播放器（停止並重置時間）**
-        function resetVideoPlayer() {
-            video.pause(); // 停止播放
-            video.currentTime = 0; // 重置時間
-            restoreVideo(); // 確保畫面恢復正常
         }
     </script>
 
